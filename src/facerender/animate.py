@@ -155,6 +155,7 @@ class AnimateFromCoeff():
         return checkpoint['epoch']
 
     def generate(self, x, video_save_dir, pic_path, crop_info, enhancer=None, background_enhancer=None, preprocess='crop', img_size=256):
+        # In inference.py
 
         source_image=x['source_image'].type(torch.FloatTensor)
         source_semantics=x['source_semantics'].type(torch.FloatTensor)
@@ -162,6 +163,7 @@ class AnimateFromCoeff():
         source_image=source_image.to(self.device)
         source_semantics=source_semantics.to(self.device)
         target_semantics=target_semantics.to(self.device)
+        
         if 'yaw_c_seq' in x:
             yaw_c_seq = x['yaw_c_seq'].type(torch.FloatTensor)
             yaw_c_seq = x['yaw_c_seq'].to(self.device)
@@ -177,6 +179,8 @@ class AnimateFromCoeff():
             roll_c_seq = x['roll_c_seq'].to(self.device)
         else:
             roll_c_seq = None
+
+        frame_num = x['frame_num']
 
         frame_num = x['frame_num']
 
@@ -198,21 +202,15 @@ class AnimateFromCoeff():
             
             image = img_as_ubyte(image)
             
-            # Display the frame
-            cv2.imshow('Generated Frame', image)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # Encode frame as a JPEG image
+            _, buffer = cv2.imencode('.jpg', image)
+            frame = buffer.tobytes()
 
-        # After the loop ends, make sure to close the window
+            yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        
+        # Close the display window if needed
         cv2.destroyAllWindows()
 
-        # The rest of your code to handle saving or further processing if needed
-        # For example, you could still save the video if desired, but without moving to result dir.
-        video_name = x['video_name']  + '.mp4'
-        path = os.path.join(video_save_dir, 'temp_' + video_name)
-        
-        # Save video if needed
-        imageio.mimsave(path, [img_as_ubyte(image) for image in predictions_video], fps=float(25))
-        return path
 
 
