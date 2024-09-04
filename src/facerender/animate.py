@@ -155,62 +155,44 @@ class AnimateFromCoeff():
         return checkpoint['epoch']
 
     def generate(self, x, video_save_dir, pic_path, crop_info, enhancer=None, background_enhancer=None, preprocess='crop', img_size=256):
-        # In inference.py
-
-        source_image=x['source_image'].type(torch.FloatTensor)
-        source_semantics=x['source_semantics'].type(torch.FloatTensor)
-        target_semantics=x['target_semantics_list'].type(torch.FloatTensor) 
-        source_image=source_image.to(self.device)
-        source_semantics=source_semantics.to(self.device)
-        target_semantics=target_semantics.to(self.device)
+        source_image = x['source_image'].type(torch.FloatTensor)
+        source_semantics = x['source_semantics'].type(torch.FloatTensor)
+        target_semantics = x['target_semantics_list'].type(torch.FloatTensor)
+        source_image = source_image.to(self.device)
+        source_semantics = source_semantics.to(self.device)
+        target_semantics = target_semantics.to(self.device)
         
-        if 'yaw_c_seq' in x:
-            yaw_c_seq = x['yaw_c_seq'].type(torch.FloatTensor)
-            yaw_c_seq = x['yaw_c_seq'].to(self.device)
-        else:
-            yaw_c_seq = None
-        if 'pitch_c_seq' in x:
-            pitch_c_seq = x['pitch_c_seq'].type(torch.FloatTensor)
-            pitch_c_seq = x['pitch_c_seq'].to(self.device)
-        else:
-            pitch_c_seq = None
-        if 'roll_c_seq' in x:
-            roll_c_seq = x['roll_c_seq'].type(torch.FloatTensor) 
-            roll_c_seq = x['roll_c_seq'].to(self.device)
-        else:
-            roll_c_seq = None
-
-        frame_num = x['frame_num']
+        yaw_c_seq = x.get('yaw_c_seq', None)
+        pitch_c_seq = x.get('pitch_c_seq', None)
+        roll_c_seq = x.get('roll_c_seq', None)
 
         frame_num = x['frame_num']
 
         predictions_video = make_animation(source_image, source_semantics, target_semantics,
                                         self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
                                         yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
-
-        predictions_video = predictions_video.reshape((-1,)+predictions_video.shape[2:])
+        
+        predictions_video = predictions_video.reshape((-1,) + predictions_video.shape[2:])
         predictions_video = predictions_video[:frame_num]
 
         for idx in range(predictions_video.shape[0]):
             image = predictions_video[idx]
             image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
-            
-            # Resize image to original size if needed
-            if crop_info[0]:
-                original_size = crop_info[0]
-                image = cv2.resize(image, (img_size, int(img_size * original_size[1]/original_size[0])))
-            
-            image = img_as_ubyte(image)
-            
-            # Encode frame as a JPEG image
-            _, buffer = cv2.imencode('.jpg', image)
-            frame = buffer.tobytes()
 
-            yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-        
-        # Close the display window if needed
+            # Convert from normalized [-1, 1] to [0, 255] and to uint8
+            image = (image * 255).astype(np.uint8)
+
+            # Display the frame using OpenCV
+            cv2.imshow("Generated Frame", image)
+
+            # Wait briefly to simulate frame rate (e.g., 40ms for 25fps)
+            if cv2.waitKey(40) & 0xFF == ord('q'):
+                break
+
+        # Close all OpenCV windows after completion
         cv2.destroyAllWindows()
+
+        return None  # Since we're displaying in real-time, no need to return a path
 
 
 
