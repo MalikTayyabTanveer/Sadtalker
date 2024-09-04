@@ -1,6 +1,7 @@
 from glob import glob
 import shutil
 import torch
+import cv2
 from time import  strftime
 import os, sys, time
 from argparse import ArgumentParser
@@ -85,11 +86,29 @@ def main(args):
                             batch_size, input_yaw_list, input_pitch_list, input_roll_list,
                             expression_scale=args.expression_scale, still_mode=args.still, preprocess=args.preprocess, size=args.size)
 
-    # Now, display frames as they are generated
-    animate_from_coeff.generate(data, save_dir, pic_path, crop_info,
-                                enhancer=args.enhancer, background_enhancer=args.background_enhancer, preprocess=args.preprocess, img_size=args.size)
+    # Directory to save the frames
+    frame_save_dir = os.path.join(save_dir, 'frames')
+    os.makedirs(frame_save_dir, exist_ok=True)
 
-    print('The frames are displayed in real-time.')
+    # Process each frame in the generated sequence
+    for idx, frame in enumerate(animate_from_coeff.generate(data, save_dir, pic_path, crop_info, \
+                                    enhancer=args.enhancer, background_enhancer=args.background_enhancer, preprocess=args.preprocess, img_size=args.size)):
+
+        # Construct the filename for each frame
+        frame_filename = os.path.join(frame_save_dir, f"frame_{idx:04d}.png")
+
+        # Save the frame as an image
+        cv2.imwrite(frame_filename, frame)
+
+        # Display the frame in real-time
+        cv2.imshow('Frame', frame)
+
+        # Wait for a short time to simulate real-time display, adjust delay if necessary
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Cleanup after video display
+    cv2.destroyAllWindows()
 
 
     

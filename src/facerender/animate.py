@@ -161,13 +161,14 @@ class AnimateFromCoeff():
         source_image = source_image.to(self.device)
         source_semantics = source_semantics.to(self.device)
         target_semantics = target_semantics.to(self.device)
-        
+
         yaw_c_seq = x.get('yaw_c_seq', None)
         pitch_c_seq = x.get('pitch_c_seq', None)
         roll_c_seq = x.get('roll_c_seq', None)
 
         frame_num = x['frame_num']
 
+        # Generate the animation (predicted video frames)
         predictions_video = make_animation(source_image, source_semantics, target_semantics,
                                         self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
                                         yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
@@ -175,12 +176,21 @@ class AnimateFromCoeff():
         predictions_video = predictions_video.reshape((-1,) + predictions_video.shape[2:])
         predictions_video = predictions_video[:frame_num]
 
+        # Create directory to save frames
+        frames_save_dir = os.path.join(video_save_dir, 'frames')
+        os.makedirs(frames_save_dir, exist_ok=True)
+
+        # Loop over each frame, save it, and display it
         for idx in range(predictions_video.shape[0]):
             image = predictions_video[idx]
             image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
 
             # Convert from normalized [-1, 1] to [0, 255] and to uint8
             image = (image * 255).astype(np.uint8)
+
+            # Construct the frame file name and save it
+            frame_filename = os.path.join(frames_save_dir, f"frame_{idx:04d}.png")
+            cv2.imwrite(frame_filename, image)  # Save the frame to disk
 
             # Display the frame using OpenCV
             cv2.imshow("Generated Frame", image)
