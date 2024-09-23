@@ -168,41 +168,23 @@ class AnimateFromCoeff():
 
         frame_num = x['frame_num']
 
-        # Generate the animation (predicted video frames)
-        predictions_video = make_animation(source_image, source_semantics, target_semantics,
-                                        self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
-                                        yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
-        
-        predictions_video = predictions_video.reshape((-1,) + predictions_video.shape[2:])
-        predictions_video = predictions_video[:frame_num]
+        # Generate the animation and process frames one by one in real-time
+        make_animation(source_image, source_semantics, target_semantics,
+               self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
+               yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
 
-        # Create directory to save frames
+# No need to reshape or slice `predictions_video` since we're now processing frames in `make_animation`.
+
+# Create directory to save frames
         frames_save_dir = os.path.join(video_save_dir, 'frames')
         os.makedirs(frames_save_dir, exist_ok=True)
 
-        # Loop over each frame, save it, and display it
-        for idx in range(predictions_video.shape[0]):
-            image = predictions_video[idx]
-            image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
+# Since frames are saved and displayed in the `make_animation` function itself,
+# there is no need to loop through `predictions_video` again.
 
-            # Convert from normalized [-1, 1] to [0, 255] and to uint8
-            image = (image * 255).astype(np.uint8)
+# Frame saving and display are handled within the `make_animation` function in real-time,
+# using the `save_and_display_frame()` function (which saves and displays each frame).
 
-            # Construct the frame file name and save it
-            frame_filename = os.path.join(frames_save_dir, f"frame_{idx:04d}.png")
-            cv2.imwrite(frame_filename, image)  # Save the frame to disk
-
-            # Display the frame using OpenCV
-            cv2.imshow("Generated Frame", image)
-
-            # Wait briefly to simulate frame rate (e.g., 40ms for 25fps)
-            if cv2.waitKey(40) & 0xFF == ord('q'):
-                break
-
-        # Close all OpenCV windows after completion
-        cv2.destroyAllWindows()
-
-        return None  # Since we're displaying in real-time, no need to return a path
 
 
 

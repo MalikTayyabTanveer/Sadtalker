@@ -87,28 +87,22 @@ def main(args):
                             expression_scale=args.expression_scale, still_mode=args.still, preprocess=args.preprocess, size=args.size)
 
     # Directory to save the frames
+    # Ensure the directory for saving frames exists
     frame_save_dir = os.path.join(save_dir, 'frames')
     os.makedirs(frame_save_dir, exist_ok=True)
 
-    # Process each frame in the generated sequence
-    for idx, frame in enumerate(animate_from_coeff.generate(data, save_dir, pic_path, crop_info, \
-                                    enhancer=args.enhancer, background_enhancer=args.background_enhancer, preprocess=args.preprocess, img_size=args.size)):
+# Instead of processing frames after generation, we call the new animation function directly
+# This function will generate, save, and display each frame in real-time.
+    animate_from_coeff.generate(data, save_dir, pic_path, crop_info,
+                            enhancer=args.enhancer, background_enhancer=args.background_enhancer,
+                            preprocess=args.preprocess, img_size=args.size)
 
-        # Construct the filename for each frame
-        frame_filename = os.path.join(frame_save_dir, f"frame_{idx:04d}.png")
+# No need for additional looping over frames, frame saving, or displaying using cv2,
+# since the frame handling (saving, displaying) is already done in real-time within the `generate` function.
 
-        # Save the frame as an image
-        cv2.imwrite(frame_filename, frame)
-
-        # Display the frame in real-time
-        cv2.imshow('Frame', frame)
-
-        # Wait for a short time to simulate real-time display, adjust delay if necessary
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # Cleanup after video display
+# Cleanup after displaying the frames
     cv2.destroyAllWindows()
+
 
 
     
