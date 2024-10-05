@@ -155,15 +155,14 @@ class AnimateFromCoeff():
         return checkpoint['epoch']
 
     def generate(self, x, video_save_dir, pic_path, crop_info, enhancer=None, background_enhancer=None, preprocess='crop', img_size=256):
-
         source_image = x['source_image'].type(torch.FloatTensor)
         source_semantics = x['source_semantics'].type(torch.FloatTensor)
         target_semantics = x['target_semantics_list'].type(torch.FloatTensor)
-        
+
         source_image = source_image.to(self.device)
         source_semantics = source_semantics.to(self.device)
         target_semantics = target_semantics.to(self.device)
-        
+
         if 'yaw_c_seq' in x:
             yaw_c_seq = x['yaw_c_seq'].type(torch.FloatTensor).to(self.device)
         else:
@@ -179,12 +178,25 @@ class AnimateFromCoeff():
 
         frame_num = x['frame_num']
 
-        # Modified `make_animation` now displays frames in real-time
-        make_animation(source_image, source_semantics, target_semantics,
-                    self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
-                    yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
-
-        # The following section is optional if you want to save the final video
+        # Call the modified make_animation function that shows frames in real-time
         predictions_video = make_animation(source_image, source_semantics, target_semantics,
                                         self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
                                         yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
+
+        predictions_video = predictions_video.reshape((-1,) + predictions_video.shape[2:])
+        predictions_video = predictions_video[:frame_num]
+
+        # Save each frame as an image
+        frames_dir = os.path.join(video_save_dir, 'frames')
+        os.makedirs(frames_dir, exist_ok=True)
+
+        for idx in range(predictions_video.shape[0]):
+            image = predictions_video[idx]
+            image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
+            image = (image * 255).astype(np.uint8)  # Convert to 0-255 range
+
+            # Save frame to 'frames' directory
+            frame_path = os.path.join(frames_dir, f'frame_{idx:04d}.png')
+            cv2.imwrite(frame_path, image)
+        
+        return frames_dir  # Return the path to the frames directory
