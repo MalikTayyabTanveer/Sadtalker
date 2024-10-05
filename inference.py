@@ -1,7 +1,6 @@
 from glob import glob
 import shutil
 import torch
-import cv2
 from time import  strftime
 import os, sys, time
 from argparse import ArgumentParser
@@ -76,34 +75,18 @@ def main(args):
     coeff_path = audio_to_coeff.generate(batch, save_dir, pose_style, ref_pose_coeff_path)
 
     # 3dface render
-    # 3d face render and video generation
     if args.face3dvis:
         from src.face3d.visualize import gen_composed_video
         gen_composed_video(args, device, first_coeff_path, coeff_path, audio_path, os.path.join(save_dir, '3dface.mp4'))
-
-    # coeff2video and frame display
+    
+    #coeff2video
     data = get_facerender_data(coeff_path, crop_pic_path, first_coeff_path, audio_path, 
-                            batch_size, input_yaw_list, input_pitch_list, input_roll_list,
-                            expression_scale=args.expression_scale, still_mode=args.still, preprocess=args.preprocess, size=args.size)
-
-    # Directory to save the frames
-    # Ensure the directory for saving frames exists
-    frame_save_dir = os.path.join(save_dir, 'frames')
-    os.makedirs(frame_save_dir, exist_ok=True)
-
-# Instead of processing frames after generation, we call the new animation function directly
-# This function will generate, save, and display each frame in real-time.
-    animate_from_coeff.generate(data, save_dir, pic_path, crop_info,
-                            enhancer=args.enhancer, background_enhancer=args.background_enhancer,
-                            preprocess=args.preprocess, img_size=args.size)
-
-# No need for additional looping over frames, frame saving, or displaying using cv2,
-# since the frame handling (saving, displaying) is already done in real-time within the `generate` function.
-
-# Cleanup after displaying the frames
-    cv2.destroyAllWindows()
-
-
+                                batch_size, input_yaw_list, input_pitch_list, input_roll_list,
+                                expression_scale=args.expression_scale, still_mode=args.still, preprocess=args.preprocess, size=args.size)
+    
+    result = animate_from_coeff.generate(data, save_dir, pic_path, crop_info, \
+                                enhancer=args.enhancer, background_enhancer=args.background_enhancer, preprocess=args.preprocess, img_size=args.size)
+    
 
     
 if __name__ == '__main__':
@@ -154,4 +137,3 @@ if __name__ == '__main__':
         args.device = "cpu"
 
     main(args)
-

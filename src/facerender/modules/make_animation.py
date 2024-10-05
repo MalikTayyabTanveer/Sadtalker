@@ -2,9 +2,9 @@ from scipy.spatial import ConvexHull
 import torch
 import torch.nn.functional as F
 import numpy as np
+import matplotlib.pyplot as plt  # For displaying frames
+import cv2 
 from tqdm import tqdm 
-import matplotlib.pyplot as plt
-from PIL import Image
 
 def normalize_kp(kp_source, kp_driving, kp_driving_initial, adapt_movement_scale=False,
                  use_relative_movement=False, use_relative_jacobian=False):
@@ -99,40 +99,22 @@ def keypoint_transformation(kp_canonical, he, wo_exp=False):
 
     return {'value': kp_transformed}
 
-def save_and_display_frame(frame_tensor, frame_idx):
-    # Convert the frame tensor to a NumPy array
-    frame_np = frame_tensor.squeeze().cpu().numpy()
-    
-    # Convert from (C, H, W) to (H, W, C)
-    frame_np = np.transpose(frame_np, (1, 2, 0))
-    
-    # Normalize the frame to be in the range [0, 255] for saving
-    frame_np = (frame_np * 255).astype(np.uint8)
-    
-    # Save the frame as an image using PIL
-    img = Image.fromarray(frame_np)
-    img.save(f"frame_{frame_idx:04d}.png")
-    
-    # Display the frame using matplotlib
-    plt.imshow(frame_np)
-    plt.axis('off')
-    plt.show()
+
 
 def make_animation(source_image, source_semantics, target_semantics,
-                   generator, kp_detector, he_estimator, mapping, 
-                   yaw_c_seq=None, pitch_c_seq=None, roll_c_seq=None,
-                   use_exp=True, use_half=False):
+                            generator, kp_detector, he_estimator, mapping, 
+                            yaw_c_seq=None, pitch_c_seq=None, roll_c_seq=None,
+                            use_exp=True, use_half=False):
     with torch.no_grad():
         kp_canonical = kp_detector(source_image)
         he_source = mapping(source_semantics)
         kp_source = keypoint_transformation(kp_canonical, he_source)
-    
+
+        # Loop through target frames
         for frame_idx in tqdm(range(target_semantics.shape[1]), 'Face Renderer:'):
-            # Extract target semantics for the current frame
             target_semantics_frame = target_semantics[:, frame_idx]
             he_driving = mapping(target_semantics_frame)
 
-            # Set yaw, pitch, and roll sequences if provided
             if yaw_c_seq is not None:
                 he_driving['yaw_in'] = yaw_c_seq[:, frame_idx]
             if pitch_c_seq is not None:
@@ -140,16 +122,23 @@ def make_animation(source_image, source_semantics, target_semantics,
             if roll_c_seq is not None:
                 he_driving['roll_in'] = roll_c_seq[:, frame_idx]
 
-            # Transform keypoints and generate the current frame
             kp_driving = keypoint_transformation(kp_canonical, he_driving)
             kp_norm = kp_driving
             out = generator(source_image, kp_source=kp_source, kp_driving=kp_norm)
 
-            # Get the predicted frame (output)
-            frame = out['prediction']
-            
-            # Save and display the frame
-            save_and_display_frame(frame, frame_idx)
+            # Get the prediction for the current frame
+            frame = out['prediction'].squeeze(0).permute(1, 2, 0).cpu().numpy()  # Convert tensor to numpy
+            frame = (frame * 255).astype(np.uint8)  # Scale the image to [0, 255] for display
+
+            # Display the frame using matplotlib
+            plt.imshow(frame)
+            plt.axis('off')  # Remove axis
+            plt.show()
+
+            # Optional: Add a small delay to make the frame display slower
+            #time.sleep(0.05)  # Adjust the sleep duration as needed
+
+    return  # No need to return all frames if we're displaying them in real-tim
 
 class AnimateModel(torch.nn.Module):
     """

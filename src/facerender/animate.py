@@ -155,36 +155,36 @@ class AnimateFromCoeff():
         return checkpoint['epoch']
 
     def generate(self, x, video_save_dir, pic_path, crop_info, enhancer=None, background_enhancer=None, preprocess='crop', img_size=256):
+
         source_image = x['source_image'].type(torch.FloatTensor)
         source_semantics = x['source_semantics'].type(torch.FloatTensor)
         target_semantics = x['target_semantics_list'].type(torch.FloatTensor)
+        
         source_image = source_image.to(self.device)
         source_semantics = source_semantics.to(self.device)
         target_semantics = target_semantics.to(self.device)
-
-        yaw_c_seq = x.get('yaw_c_seq', None)
-        pitch_c_seq = x.get('pitch_c_seq', None)
-        roll_c_seq = x.get('roll_c_seq', None)
+        
+        if 'yaw_c_seq' in x:
+            yaw_c_seq = x['yaw_c_seq'].type(torch.FloatTensor).to(self.device)
+        else:
+            yaw_c_seq = None
+        if 'pitch_c_seq' in x:
+            pitch_c_seq = x['pitch_c_seq'].type(torch.FloatTensor).to(self.device)
+        else:
+            pitch_c_seq = None
+        if 'roll_c_seq' in x:
+            roll_c_seq = x['roll_c_seq'].type(torch.FloatTensor).to(self.device)
+        else:
+            roll_c_seq = None
 
         frame_num = x['frame_num']
 
-        # Generate the animation and process frames one by one in real-time
+        # Modified `make_animation` now displays frames in real-time
         make_animation(source_image, source_semantics, target_semantics,
-               self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
-               yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
+                    self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
+                    yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
 
-# No need to reshape or slice `predictions_video` since we're now processing frames in `make_animation`.
-
-# Create directory to save frames
-        frames_save_dir = os.path.join(video_save_dir, 'frames')
-        os.makedirs(frames_save_dir, exist_ok=True)
-
-# Since frames are saved and displayed in the `make_animation` function itself,
-# there is no need to loop through `predictions_video` again.
-
-# Frame saving and display are handled within the `make_animation` function in real-time,
-# using the `save_and_display_frame()` function (which saves and displays each frame).
-
-
-
-
+        # The following section is optional if you want to save the final video
+        predictions_video = make_animation(source_image, source_semantics, target_semantics,
+                                        self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
+                                        yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp=True)
